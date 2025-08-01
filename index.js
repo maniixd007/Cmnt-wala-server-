@@ -7,42 +7,42 @@ const { URL } = require("url");
 // Load .env
 dotenv.config();
 
-// Read token
-let ACCESS_TOKEN;
+// 🔁 Multi-token support
+let TOKENS = [];
 try {
-  ACCESS_TOKEN = fs.readFileSync("token.txt", "utf-8").trim();
-} catch (err) {
-  console.error("❌ token.txt file not found.");
+  TOKENS = fs.readFileSync("token.txt", "utf-8").split("\n").map(t => t.trim()).filter(Boolean);
+} catch {
+  console.error("❌ token.txt not found");
   process.exit(1);
 }
 
-// Read comments
+// 📃 Read comments
 let comments = [];
 try {
   comments = fs.readFileSync("comment.txt", "utf-8").split("\n").map(c => c.trim()).filter(Boolean);
-} catch (err) {
-  console.error("❌ comment.txt not found.");
+} catch {
+  console.error("❌ comment.txt not found");
   process.exit(1);
 }
 
-// Read hater names
+// 📃 Read names
 let names = [];
 try {
   names = fs.readFileSync("name.txt", "utf-8").split("\n").map(n => n.trim()).filter(Boolean);
-} catch (err) {
-  console.error("❌ name.txt not found.");
+} catch {
+  console.error("❌ name.txt not found");
   process.exit(1);
 }
 
 const POST_LINK = process.env.POST_LINK;
 const INTERVAL = parseInt(process.env.INTERVAL) || 60000;
 
-if (!POST_LINK || !ACCESS_TOKEN) {
-  console.error("❌ Missing POST_LINK or ACCESS_TOKEN");
+if (!POST_LINK || TOKENS.length === 0) {
+  console.error("❌ Missing POST_LINK or no tokens found.");
   process.exit(1);
 }
 
-// Extract post ID
+// 🧠 Extract Post ID
 function extractPostId(link) {
   try {
     const url = new URL(link);
@@ -51,9 +51,7 @@ function extractPostId(link) {
     if (uidMatch && postIdMatch) {
       return `${uidMatch[1]}_${postIdMatch[1]}`;
     }
-  } catch {
-    return null;
-  }
+  } catch { return null; }
   return null;
 }
 
@@ -66,33 +64,59 @@ if (!POST_ID) {
 let commentIndex = 0;
 let nameIndex = 0;
 
-// Comment loop
+// 💀 Obfuscate message with random emojis
+function obfuscate(msg) {
+  const emojis = ["😈", "🔥", "💀", "👿", "🤡", "🥵", "🤖", "😡", "🤣", "🙄"];
+  const rand = emojis[Math.floor(Math.random() * emojis.length)];
+  return msg + " " + rand;
+}
+
+// 🧠 Human-like delay
+function humanDelay() {
+  return INTERVAL + Math.floor(Math.random() * 15000); // up to +15s
+}
+
+// 🌍 Anti-sleep keep-alive
+setInterval(() => {
+  axios.get("https://google.com").catch(() => {});
+}, 60000);
+
+// 🔁 Comment loop with retry, token switch
 async function commentLoop() {
-  const message = `${comments[commentIndex]} - ${names[nameIndex]}`;
+  const message = obfuscate(`${comments[commentIndex]} - ${names[nameIndex]}`);
+  const token = TOKENS[Math.floor(Math.random() * TOKENS.length)];
 
   try {
-    const res = await axios.post(`https://graph.facebook.com/${POST_ID}/comments`, null, {
-      params: {
-        message,
-        access_token: ACCESS_TOKEN,
-      },
+    await axios.post(`https://graph.facebook.com/${POST_ID}/comments`, null, {
+      params: { message, access_token: token },
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Referer": "https://facebook.com/",
+        "Connection": "keep-alive",
+        "Accept-Language": "en-US,en;q=0.9",
+      }
     });
 
     console.log(`✅ Sent: "${message}" at ${new Date().toLocaleTimeString()}`);
   } catch (err) {
     console.error("❌ Error:", err.response?.data?.error?.message || err.message);
+    setTimeout(() => {
+      console.log("🔁 Retrying...");
+      commentLoop(); // Retry immediately
+    }, 10000);
+    return;
   }
 
   commentIndex = (commentIndex + 1) % comments.length;
   nameIndex = (nameIndex + 1) % names.length;
 
-  setTimeout(commentLoop, INTERVAL);
+  setTimeout(commentLoop, humanDelay());
 }
 
-// Start server + bot
+// 🌐 Express server + start bot
 const app = express();
 app.get("/", (req, res) => res.send("✅ ANURAG Comment Bot is Live!"));
 app.listen(process.env.PORT || 3000, () => {
-  console.log("🌍 Server running. Commenting every", INTERVAL / 1000, "sec");
+  console.log("🌍 Server running. Commenting every ~", INTERVAL / 1000, "sec");
   commentLoop();
 });
