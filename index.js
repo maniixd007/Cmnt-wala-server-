@@ -71,11 +71,6 @@ function obfuscate(msg) {
   return msg + " " + rand;
 }
 
-// 🧠 Human-like delay
-function humanDelay() {
-  return INTERVAL + Math.floor(Math.random() * 15000); // up to +15s
-}
-
 // 🌍 Anti-sleep keep-alive
 setInterval(() => {
   axios.get("https://google.com").catch(() => {});
@@ -110,13 +105,13 @@ async function commentLoop() {
   commentIndex = (commentIndex + 1) % comments.length;
   nameIndex = (nameIndex + 1) % names.length;
 
-  setTimeout(commentLoop, humanDelay());
+  setTimeout(commentLoop, INTERVAL); // 👈 Fixed interval from .env
 }
 
 // 🌐 Express server + start bot
 const app = express();
 app.get("/", (req, res) => res.send("✅ ANURAG Comment Bot is Live!"));
 app.listen(process.env.PORT || 3000, () => {
-  console.log("🌍 Server running. Commenting every ~", INTERVAL / 1000, "sec");
+  console.log("🌍 Server running. Commenting every", INTERVAL / 1000, "sec");
   commentLoop();
-});
+}); ye lo
